@@ -21,3 +21,12 @@ test('cutClip returns the output path on success', async () => {
   const res = await cutClip({ source: 'in.mp4', startSec: 0, endSec: 30, output: 'out.mp4', crf: 20 }, runFfmpeg)
   expect(res).toEqual({ ok: true, output: 'out.mp4' })
 })
+
+test('buildCutArgs prepends -hwaccel videotoolbox when requested (Phase 6 decode accel)', () => {
+  const args = buildCutArgs({ source: 'in.mp4', startSec: 30, endSec: 75, output: 'out.mp4', crf: 20, hwaccel: 'videotoolbox' })
+  expect(args.slice(0, 6)).toEqual(['-hwaccel', 'videotoolbox', '-ss', '30', '-i', 'in.mp4'])
+})
+
+test('buildCutArgs without hwaccel is byte-identical (no -hwaccel)', () => {
+  expect(buildCutArgs({ source: 'in.mp4', startSec: 0, endSec: 30, output: 'out.mp4', crf: 20 })).not.toContain('-hwaccel')
+})

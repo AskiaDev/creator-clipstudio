@@ -113,3 +113,30 @@ describe('buildFiltergraph reframe crop seam', () => {
     expect(graph).toContain('[0:v]crop=203:360:219:0,scale=960:1100:force_original_aspect_ratio=decrease')
   })
 })
+
+describe('buildFfmpegArgs render-opt seam (Phase 6)', () => {
+  test('no hwaccel / no videoEncode → byte-identical (CRF encode, no -hwaccel, video -i first)', () => {
+    const args = buildFfmpegArgs(baseSpec)
+    expect(args).not.toContain('-hwaccel')
+    expect(args).toContain('-crf')
+    expect(args.slice(0, 2)).toEqual(['-i', baseSpec.videoInput])
+  })
+
+  test('hwaccel videotoolbox is prepended before the first -i (decode accel)', () => {
+    const args = buildFfmpegArgs({ ...baseSpec, hwaccel: 'videotoolbox' })
+    expect(args.slice(0, 4)).toEqual(['-hwaccel', 'videotoolbox', '-i', baseSpec.videoInput])
+  })
+
+  test('videoEncode replaces -crf with libx264 VBV bitrate + GOP', () => {
+    const args = buildFfmpegArgs({
+      ...baseSpec,
+      videoEncode: { bitrate: 20_000_000, maxrate: 29_000_000, bufsize: 58_000_000, keyint: 90 },
+    })
+    expect(args).not.toContain('-crf')
+    expect(args).toContain('libx264') // encoder unchanged — VBV, not a hardware encoder
+    expect(args[args.indexOf('-b:v') + 1]).toBe('20000000')
+    expect(args[args.indexOf('-maxrate') + 1]).toBe('29000000')
+    expect(args[args.indexOf('-bufsize') + 1]).toBe('58000000')
+    expect(args[args.indexOf('-g') + 1]).toBe('90')
+  })
+})

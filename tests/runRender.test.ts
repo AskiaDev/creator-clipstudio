@@ -143,3 +143,49 @@ describe('renderClip reframe threading (Phase 4)', () => {
     expect(result.stage).toBe('reframe')
   })
 })
+
+describe('renderClip render-opt threading (Phase 6)', () => {
+  function exportDeps(sink: { args: readonly string[]; logs: string[] }, hwaccelAvailable: boolean): Partial<RenderDeps> {
+    return okDeps({
+      runFfmpeg: async (args) => {
+        sink.args = args
+        return { exitCode: 0, stderr: '' }
+      },
+      detectHwaccel: () => hwaccelAvailable,
+      log: (m) => sink.logs.push(m),
+    })
+  }
+
+  test('export → threads VBV bitrate + videotoolbox hwaccel and logs the plan', async () => {
+    const sink = { args: [] as readonly string[], logs: [] as string[] }
+    const result = await renderClip({ ...REQUEST, export: { tier: 'high' } }, exportDeps(sink, true))
+    if (!result.ok) throw new Error(`expected success, got ${result.stage}: ${result.error}`)
+    expect(sink.args.slice(0, 2)).toEqual(['-hwaccel', 'videotoolbox'])
+    expect(sink.args).not.toContain('-crf')
+    expect(sink.args[sink.args.indexOf('-b:v') + 1]).toBe('20000000') // 1080x1920 high
+    expect(sink.logs.some((l) => l.includes('[render-opt]'))).toBe(true)
+  })
+
+  test('software fallback: hwaccel unavailable → no -hwaccel, still VBV, logs the fallback', async () => {
+    const sink = { args: [] as readonly string[], logs: [] as string[] }
+    await renderClip({ ...REQUEST, export: { tier: 'high' } }, exportDeps(sink, false))
+    expect(sink.args).not.toContain('-hwaccel')
+    expect(sink.args).toContain('-b:v')
+    expect(sink.logs.some((l) => l.toLowerCase().includes('software decode'))).toBe(true)
+  })
+
+  test('export with hwaccel:false → VBV bitrate but never -hwaccel even if available', async () => {
+    const sink = { args: [] as readonly string[], logs: [] as string[] }
+    await renderClip({ ...REQUEST, export: { tier: 'high', hwaccel: false } }, exportDeps(sink, true))
+    expect(sink.args).not.toContain('-hwaccel')
+    expect(sink.args).toContain('-b:v')
+  })
+
+  test('no export → byte-identical encode (-crf, no -hwaccel, no -b:v)', async () => {
+    const sink = { args: [] as readonly string[], logs: [] as string[] }
+    await renderClip(REQUEST, exportDeps(sink, true))
+    expect(sink.args).toContain('-crf')
+    expect(sink.args).not.toContain('-hwaccel')
+    expect(sink.args).not.toContain('-b:v')
+  })
+})

@@ -44,6 +44,18 @@ export interface RenderSpec {
    * `runRender` builds this from the probed source size via `reframeCropExpr` (src/render/reframe.ts).
    */
   readonly reframeCrop?: string
+  /** Optional VideoToolbox decode acceleration (Phase 6 render-opt). Absent → software decode. */
+  readonly hwaccel?: 'videotoolbox'
+  /**
+   * Optional libx264 VBV bitrate + GOP encode (Phase 6) replacing `-crf`. Absent → `-crf {crf}`
+   * (byte-identical). The encoder stays libx264 — this is rate control, not a hardware-encoder swap.
+   */
+  readonly videoEncode?: {
+    readonly bitrate: number
+    readonly maxrate: number
+    readonly bufsize: number
+    readonly keyint: number
+  }
 }
 
 /**
@@ -95,9 +107,22 @@ export function buildFiltergraph(spec: RenderSpec): string {
   return lines.join(';')
 }
 
+/** libx264 video opts: VBV bitrate + GOP when a render-opt plan is present, else the byte-identical CRF. */
+function videoEncodeArgs(spec: RenderSpec): string[] {
+  if (spec.videoEncode) {
+    const { bitrate, maxrate, bufsize, keyint } = spec.videoEncode
+    return ['-c:v', 'libx264', '-b:v', String(bitrate), '-maxrate', String(maxrate), '-bufsize', String(bufsize), '-g', String(keyint)]
+  }
+  return ['-c:v', 'libx264', '-crf', String(spec.crf)]
+}
+
 /** Build the full ffmpeg argv (after the `ffmpeg` binary) for one render. */
 export function buildFfmpegArgs(spec: RenderSpec): string[] {
+  // `-hwaccel videotoolbox` (Phase 6) is a per-input DECODE option placed before the video `-i`; absent
+  // → software decode (byte-identical). The encoder (videoEncodeArgs) is unchanged either way.
+  const decodeArgs = spec.hwaccel ? ['-hwaccel', spec.hwaccel] : []
   return [
+    ...decodeArgs,
     '-i',
     spec.videoInput,
     '-i',
@@ -109,10 +134,7 @@ export function buildFfmpegArgs(spec: RenderSpec): string[] {
     '-map',
     '0:a?',
     '-shortest',
-    '-c:v',
-    'libx264',
-    '-crf',
-    String(spec.crf),
+    ...videoEncodeArgs(spec),
     '-c:a',
     'aac',
     '-pix_fmt',

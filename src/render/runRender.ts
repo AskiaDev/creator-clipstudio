@@ -12,6 +12,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { buildFfmpegArgs, type FitMode, type Rect, type RenderSpec, type Size } from './ffmpegArgs'
 import { buildFfprobeArgs, type ProbeData, type ProbeResult, parseFfprobeJson } from './ffprobe'
+import { type ExportConfig, describeExportPlan, planExport } from './exportArgs'
 import { type OverlayContent, type OverlayTemplate, renderOverlayPng } from './overlay'
 import { type BinaryResolver, preflight } from './preflight'
 import { type ReframeRequest, reframeCropExpr } from './reframe'
@@ -41,6 +42,11 @@ export interface RenderRequest {
    * the render path is byte-identical to the un-reframed renderer.
    */
   readonly reframe?: ReframeRequest
+  /**
+   * Optional Phase-6 render-opt: VideoToolbox decode (software fallback) + resolution-scaled VBV bitrate
+   * + GOP tuning, computed from the output canvas. Absent → CRF encode, byte-identical render.
+   */
+  readonly export?: ExportConfig
 }
 
 /** The pipeline stage a failure occurred in. */
@@ -61,6 +67,10 @@ export interface RenderDeps {
   readonly probeVideo: (path: string) => Promise<ProbeResult>
   readonly runFfmpeg: (args: readonly string[]) => Promise<FfmpegRun>
   readonly makeOverlayPng: (content: OverlayContent, template?: OverlayTemplate) => Promise<Uint8Array>
+  /** Whether a named ffmpeg `-hwaccel` is available (Phase 6); default probes `ffmpeg -hwaccels`. */
+  readonly detectHwaccel: (name: string) => boolean
+  /** Progress/diagnostics sink (default no-op); surfaces the render-opt plan so no clamp is silent. */
+  readonly log: (message: string) => void
 }
 
 const STDERR_TAIL_LINES = 6
@@ -102,11 +112,41 @@ async function spawnFfmpeg(args: readonly string[]): Promise<FfmpegRun> {
   return { exitCode, stderr }
 }
 
+/**
+ * Available ffmpeg `-hwaccels`, probed ONCE per process — the set never changes at runtime, so memoizing
+ * keeps the synchronous `ffmpeg -hwaccels` spawn off the hot async render path after the first export
+ * render. A non-zero exit (e.g. ffmpeg missing) or a throw leaves the set empty → software fallback.
+ */
+let hwaccelCache: Set<string> | null = null
+
+function detectHwaccelDefault(name: string): boolean {
+  if (hwaccelCache === null) {
+    hwaccelCache = new Set()
+    try {
+      const r = Bun.spawnSync(['ffmpeg', '-hide_banner', '-hwaccels'])
+      if (r.exitCode === 0) {
+        for (const line of `${r.stdout?.toString() ?? ''}`.split('\n')) {
+          const trimmed = line.trim()
+          // Accelerator names are listed one-per-line under a `Hardware acceleration methods:` header.
+          if (trimmed.length > 0 && !trimmed.endsWith(':')) {
+            hwaccelCache.add(trimmed)
+          }
+        }
+      }
+    } catch {
+      // Leave the cache empty → software fallback for every accelerator.
+    }
+  }
+  return hwaccelCache.has(name)
+}
+
 const DEFAULT_DEPS: RenderDeps = {
   resolveBinary: (binary) => Bun.which(binary),
   probeVideo,
   runFfmpeg: spawnFfmpeg,
   makeOverlayPng: renderOverlayPng,
+  detectHwaccel: detectHwaccelDefault,
+  log: () => {},
 }
 
 /**
@@ -138,6 +178,28 @@ export async function renderClip(
       reframeCrop = reframeCropExpr(request.reframe, { width: probe.data.width, height: probe.data.height })
     } catch (err) {
       return { ok: false, stage: 'reframe', error: errorMessage(err) }
+    }
+  }
+
+  // Phase 6 render-opt (opt-in): resolution-scaled VBV bitrate + GOP from the output canvas, plus
+  // VideoToolbox decode when available (software fallback). The full plan — including the deferred
+  // chunk/concurrency/queue — is logged so no clamp is silent. Absent → CRF encode, byte-identical.
+  let hwaccel: 'videotoolbox' | undefined
+  let videoEncode: RenderSpec['videoEncode']
+  if (request.export) {
+    if (request.export.fps === undefined) {
+      // Surface the assumption: bitrate floor/cap + keyint scale with fps; omitting it assumes 30fps.
+      d.log('[render-opt] output fps not provided -> bitrate/keyint assume 30fps')
+    }
+    const plan = planExport(request.export, request.canvas.width, request.canvas.height)
+    videoEncode = plan.videoEncode
+    d.log(describeExportPlan(plan))
+    if (request.export.hwaccel !== false) {
+      if (d.detectHwaccel('videotoolbox')) {
+        hwaccel = 'videotoolbox'
+      } else {
+        d.log('[render-opt] videotoolbox unavailable -> software decode')
+      }
     }
   }
 
@@ -176,6 +238,8 @@ export async function renderClip(
       crf: request.crf,
       subtitlePath: request.subtitlePath,
       reframeCrop,
+      hwaccel,
+      videoEncode,
     }
 
     const { exitCode, stderr } = await d.runFfmpeg(buildFfmpegArgs(spec))

@@ -3,7 +3,8 @@
  * an injectable spawn seam, mirroring the render core (`src/render/runRender.ts`). Fast input-seek
  * (`-ss` before `-i`) + `-t duration`, re-encoded for frame accuracy.
  *
- * Render-opt follow-up (cross-cutting Phase 6): add `-hwaccel videotoolbox` + resolution-scaled bitrate here.
+ * Render-opt (cross-cutting Phase 6): optional `-hwaccel videotoolbox` decode is wired below; the cut
+ * stays a CRF re-encode (resolution-scaled VBV bitrate for cuts is a deferred follow-up).
  */
 
 import { mkdirSync } from 'node:fs'
@@ -15,6 +16,8 @@ export interface CutSpec {
   readonly endSec: number
   readonly output: string
   readonly crf: number
+  /** Optional VideoToolbox decode acceleration (Phase 6 render-opt). Absent → software decode. */
+  readonly hwaccel?: 'videotoolbox'
 }
 
 export type RunFfmpeg = (args: readonly string[]) => Promise<{ exitCode: number; stderr: string }>
@@ -22,7 +25,11 @@ export type RunFfmpeg = (args: readonly string[]) => Promise<{ exitCode: number;
 /** Fast input-seek + duration cut, re-encoded for frame accuracy. */
 export function buildCutArgs(spec: CutSpec): string[] {
   const duration = Math.max(0, spec.endSec - spec.startSec)
+  // `-hwaccel videotoolbox` (Phase 6) is a per-input DECODE option, before the input seek/`-i`; absent
+  // → software decode (byte-identical).
+  const decodeArgs = spec.hwaccel ? ['-hwaccel', spec.hwaccel] : []
   return [
+    ...decodeArgs,
     '-ss',
     String(spec.startSec),
     '-i',
