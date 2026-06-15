@@ -1,0 +1,20 @@
+{
+  "durationSec": 10,
+  "segments": [
+    {
+      "startSec": 0,
+      "endSec": 2,
+      "text": "Hello world.",
+      "words": [
+        { "text": "Hello", "startSec": 0, "endSec": 0.8 },
+        { "text": "world.", "startSec": 0.8, "endSec": 2 }
+      ]
+    },
+    {
+      "startSec": 2,
+      "endSec": 5,
+      "text": "No timings here.",
+      "words": []
+    }
+  ]
+}

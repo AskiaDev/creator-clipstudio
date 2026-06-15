@@ -76,3 +76,22 @@ describe('buildFfmpegArgs', () => {
     expect(args[args.length - 2]).toBe('-y')
   })
 })
+
+describe('buildFiltergraph subtitle burn-in seam', () => {
+  test('no subtitlePath → byte-identical graph: output ends [out], no ass filter', () => {
+    const graph = filtergraphOf(buildFfmpegArgs(baseSpec))
+    expect(graph.endsWith('[base][1:v]overlay=0:0[out]')).toBe(true)
+    expect(graph).not.toContain('ass=')
+  })
+
+  test('with subtitlePath → appends an ass filter routed into [out]', () => {
+    const graph = filtergraphOf(buildFfmpegArgs({ ...baseSpec, subtitlePath: '/tmp/d/cap.ass' }))
+    expect(graph).toContain('[base][1:v]overlay=0:0[cap]')
+    expect(graph.endsWith('[cap]ass=filename=/tmp/d/cap.ass[out]')).toBe(true)
+  })
+
+  test('escapes filtergraph-special characters in the subtitle path', () => {
+    const graph = filtergraphOf(buildFfmpegArgs({ ...baseSpec, subtitlePath: '/tmp/a:b/cap.ass' }))
+    expect(graph).toContain('ass=filename=/tmp/a\\:b/cap.ass[out]')
+  })
+})

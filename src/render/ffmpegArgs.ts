@@ -36,6 +36,18 @@ export interface RenderSpec {
   readonly background: string
   /** libx264 constant rate factor (lower = higher quality). */
   readonly crf: number
+  /** Optional ASS subtitle file to burn in (Phase 3 captions). Absent → graph is unchanged. */
+  readonly subtitlePath?: string
+}
+
+/**
+ * Escape an ASS path for the `ass` filter's `filename` option inside `-filter_complex`. `\` and `:` are
+ * AVOption-significant and must be escaped. Callers MUST pass a controlled local path (the worker/route
+ * writes the ASS to a temp/work dir) — paths containing quotes or other filtergraph metacharacters are
+ * unsupported. The burn path is only exercisable on an ffmpeg built with libass (tests/golden/captionsBurn).
+ */
+function escapeAssPath(path: string): string {
+  return path.replace(/\\/g, '\\\\').replace(/:/g, '\\:')
 }
 
 function videoChain(spec: RenderSpec): { scale: string; overlay: string } {
@@ -53,18 +65,25 @@ function videoChain(spec: RenderSpec): { scale: string; overlay: string } {
   }
 }
 
-/** Build the `-filter_complex` graph: background → video region → overlay PNG. */
+/** Build the `-filter_complex` graph: background → video region → overlay PNG → (optional) burned ASS. */
 export function buildFiltergraph(spec: RenderSpec): string {
   const { scale, overlay } = videoChain(spec)
-  return [
+  const lines = [
     `color=c=${spec.background}:s=${spec.canvas.width}x${spec.canvas.height}[bg]`,
     scale,
     // `shortest=1` ends the composite when the (finite) source video ends. Without it the infinite
     // `color` background drives an unbounded output for any source whose length isn't otherwise
     // bounded — notably a clip with no audio stream — and the render runs until the disk fills.
     `[bg][v]${overlay}:shortest=1[base]`,
-    '[base][1:v]overlay=0:0[out]',
-  ].join(';')
+  ]
+  // When no subtitle is requested the final label stays `[out]`, so the graph is byte-identical to the
+  // pre-captions renderer (its golden tests stay green). With one, route the composite through `ass`.
+  if (spec.subtitlePath) {
+    lines.push('[base][1:v]overlay=0:0[cap]', `[cap]ass=filename=${escapeAssPath(spec.subtitlePath)}[out]`)
+  } else {
+    lines.push('[base][1:v]overlay=0:0[out]')
+  }
+  return lines.join(';')
 }
 
 /** Build the full ffmpeg argv (after the `ffmpeg` binary) for one render. */
