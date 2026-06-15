@@ -1,0 +1,9 @@
+{
+  "durationSec": 120,
+  "segments": [
+    { "startSec": 0, "endSec": 8, "text": "Welcome back to the show.", "words": [] },
+    { "startSec": 8, "endSec": 45, "text": "The single biggest mistake founders make is shipping before talking to users.", "words": [] },
+    { "startSec": 45, "endSec": 95, "text": "Here is the framework we used to go from zero to ten thousand customers in a year.", "words": [] },
+    { "startSec": 95, "endSec": 120, "text": "That's all for today, thanks for listening.", "words": [] }
+  ]
+}
