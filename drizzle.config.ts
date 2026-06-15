@@ -13,9 +13,7 @@ const DATABASE_URL = process.env.DATABASE_URL ?? 'file:./data/creatorclip.db'
 
 export default defineConfig({
   dialect: 'sqlite',
-  // No table modules yet — Phase 5 will point this at './src/db/schema.ts'.
-  // An empty list keeps every drizzle-kit subcommand valid with zero tables.
-  schema: [],
+  schema: './src/db/schema.ts',
   out: './drizzle',
   dbCredentials: {
     url: DATABASE_URL,
