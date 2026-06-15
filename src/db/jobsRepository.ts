@@ -3,7 +3,7 @@
  * in callers. Phase 6's worker will add claim/complete/fail operations; Phase 5 only enqueues.
  */
 
-import { and, eq } from 'drizzle-orm'
+import { and, desc, eq } from 'drizzle-orm'
 import type { ValidRow } from '../csv/parse'
 import type { Db } from './client'
 import { type NewRenderJob, type RenderJob, renderJobs, renderLogs } from './schema'
@@ -100,4 +100,26 @@ export function recordRenderLog(db: Db, entry: RenderLogInput): void {
       durationMs: entry.durationMs ?? null,
     })
     .run()
+}
+
+export interface RecentRenderLog {
+  readonly jobId: number
+  readonly status: 'success' | 'failed'
+  readonly message: string | null
+  readonly outputPath: string | null
+}
+
+/** The most recent render-log entries, newest first — for the UI status panel. */
+export function listRecentRenderLogs(db: Db, limit: number): RecentRenderLog[] {
+  return db
+    .select({
+      jobId: renderLogs.jobId,
+      status: renderLogs.status,
+      message: renderLogs.message,
+      outputPath: renderLogs.outputPath,
+    })
+    .from(renderLogs)
+    .orderBy(desc(renderLogs.id))
+    .limit(limit)
+    .all()
 }

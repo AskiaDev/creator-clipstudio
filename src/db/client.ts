@@ -3,6 +3,10 @@
  *
  * `createDb` opens a database (a file path, or `:memory:` for tests) with foreign keys enforced and
  * returns a typed Drizzle instance. drizzle-kit (dev) talks to the same file through `@libsql/client`.
+ *
+ * RUNTIME: `bun:sqlite` only resolves under the Bun runtime, so the Next server must run under Bun —
+ * the `dev`/`start` scripts use `bun --bun next ...`. Route handlers import this module lazily so
+ * `next build` (Node) never evaluates it. Running the server under plain Node would 500 on DB access.
  */
 
 import { Database } from 'bun:sqlite'

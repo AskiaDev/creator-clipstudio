@@ -4,9 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "next dev",
+    "dev": "bun --bun next dev",
     "build": "next build",
-    "start": "next start",
+    "start": "bun --bun next start",
     "lint": "biome lint .",
     "typecheck": "tsc --noEmit",
     "test": "bun test",
@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@resvg/resvg-js": "^2.6.2",
+    "@tanstack/react-table": "^8.21.3",
     "drizzle-orm": "^0.45.2",
     "next": "^16.2.9",
     "papaparse": "^5.5.3",
