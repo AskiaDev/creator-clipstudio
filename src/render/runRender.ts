@@ -28,6 +28,12 @@ export interface RenderRequest {
   readonly crf: number
   readonly overlay: OverlayContent
   readonly template?: OverlayTemplate
+  /**
+   * Optional ASS subtitle file to burn in (Phase 3 captions). The worker writes the file from a job's
+   * `captions_transcript` and passes its path; absent → the filtergraph is byte-identical to the
+   * pre-captions renderer (the `ass` filter is only added when this is set — see `buildFiltergraph`).
+   */
+  readonly subtitlePath?: string
 }
 
 /** The pipeline stage a failure occurred in. */
@@ -149,6 +155,7 @@ export async function renderClip(
       fit: request.fit,
       background: request.background,
       crf: request.crf,
+      subtitlePath: request.subtitlePath,
     }
 
     const { exitCode, stderr } = await d.runFfmpeg(buildFfmpegArgs(spec))

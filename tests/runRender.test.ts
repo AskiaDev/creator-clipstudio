@@ -85,3 +85,33 @@ describe('renderClip orchestration', () => {
     expect(existsSync(overlayArg as string)).toBe(false)
   })
 })
+
+describe('renderClip subtitle threading (Phase 3 captions)', () => {
+  function filtergraphOf(args: readonly string[]): string {
+    return args[args.indexOf('-filter_complex') + 1] ?? ''
+  }
+  /** ok deps that record the ffmpeg argv the renderer would spawn, into `sink.args`. */
+  function capturingDeps(sink: { args: readonly string[] }): Partial<RenderDeps> {
+    return okDeps({
+      runFfmpeg: async (args) => {
+        sink.args = args
+        return { exitCode: 0, stderr: '' }
+      },
+    })
+  }
+
+  test('threads request.subtitlePath into the filtergraph as a burned-in ass filter', async () => {
+    const sink = { args: [] as readonly string[] }
+    const result = await renderClip({ ...REQUEST, subtitlePath: '/tmp/caps/cap.ass' }, capturingDeps(sink))
+    if (!result.ok) throw new Error(`expected success, got ${result.stage}: ${result.error}`)
+    expect(filtergraphOf(sink.args)).toContain('ass=filename=/tmp/caps/cap.ass')
+  })
+
+  test('omits the ass filter when no subtitlePath — graph ends [out], byte-identical to pre-captions', async () => {
+    const sink = { args: [] as readonly string[] }
+    await renderClip(REQUEST, capturingDeps(sink))
+    const graph = filtergraphOf(sink.args)
+    expect(graph).not.toContain('ass=')
+    expect(graph.endsWith('[out]')).toBe(true)
+  })
+})

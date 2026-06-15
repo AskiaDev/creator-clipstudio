@@ -46,6 +46,13 @@ export const renderJobs = sqliteTable('render_jobs', {
   account: text('account').notNull(),
   category: text('category').notNull(),
   templateKey: text('template_key').notNull(),
+  /**
+   * The edited Transcript (Phase 3 captions) as a JSON string, or null for no burned-in captions.
+   * Deliberately plain TEXT (not drizzle `mode: 'json'`): the worker treats it as untrusted and
+   * JSON-parses + Zod-validates it per job, so a single corrupt row fails only that job instead of
+   * throwing inside the claim-select and aborting the whole drain.
+   */
+  captionsTranscript: text('captions_transcript'),
   outputPath: text('output_path'),
   attempts: integer('attempts').notNull().default(0),
   error: text('error'),

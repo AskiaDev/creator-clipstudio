@@ -1,28 +1,14 @@
 import { z } from 'zod'
+import { segmentSchema, transcriptSchema, wordSchema } from '@/src/transcribe/schema'
 
 /**
- * Zod schemas for POST /api/captions, shared by the route handler and the Studio's transcript JSON
- * loader so both validate the exact same shape (a `Transcript` from src/transcribe/types.ts, plus
- * optional ASS style overrides). Timings are seconds; ASS colours are `&HAABBGGRR` strings.
+ * Zod schemas for POST /api/captions. The transcript shape is the canonical validator from
+ * `src/transcribe/schema` (the same one the render worker uses on read), re-exported here so the route
+ * handler and the Studio's transcript JSON loader keep importing it from one place. This file owns only
+ * the API-specific additions: optional ASS style overrides and the request body envelope.
  */
 
-export const wordSchema = z.object({
-  text: z.string(),
-  startSec: z.number().nonnegative(),
-  endSec: z.number().nonnegative(),
-})
-
-export const segmentSchema = z.object({
-  startSec: z.number().nonnegative(),
-  endSec: z.number().nonnegative(),
-  text: z.string(),
-  words: z.array(wordSchema),
-})
-
-export const transcriptSchema = z.object({
-  durationSec: z.number().nonnegative(),
-  segments: z.array(segmentSchema),
-})
+export { wordSchema, segmentSchema, transcriptSchema }
 
 // Partial ASS style overrides. `canvas`, when present, must be a complete {width,height}
 // because buildAss shallow-merges it as a whole (see DEFAULT_ASS_STYLE).

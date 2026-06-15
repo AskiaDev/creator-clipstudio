@@ -8,6 +8,13 @@
       "when": 1781490881534,
       "tag": "0000_classy_whizzer",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1781520074023,
+      "tag": "0001_clever_mentallo",
+      "breakpoints": true
     }
   ]
 }

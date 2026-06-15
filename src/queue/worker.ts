@@ -7,6 +7,11 @@
  * All spawn/clock/fs/template dependencies are injectable so the loop is unit-testable without ffmpeg.
  */
 
+import { rmSync } from 'node:fs'
+import { mkdtemp, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { buildAss } from '../captions/ass'
 import type { Db } from '../db/client'
 import {
   claimNextPending,
@@ -20,6 +25,7 @@ import { buildOutputPath } from '../output/paths'
 import { appendRenderLog, type RenderLogEntry } from '../output/renderLog'
 import { type RenderRequest, renderClip } from '../render/runRender'
 import { DEFAULT_RENDER_TEMPLATE, getRenderTemplate, type RenderTemplate } from '../templates/builtins'
+import { parseTranscriptJson } from '../transcribe/schema'
 
 export interface WorkerDeps {
   readonly renderClip: typeof renderClip
@@ -56,7 +62,12 @@ function dateStamp(date: Date): string {
   return date.toISOString().slice(0, 10) // YYYY-MM-DD
 }
 
-function toRequest(job: RenderJob, template: RenderTemplate, output: string): RenderRequest {
+function toRequest(
+  job: RenderJob,
+  template: RenderTemplate,
+  output: string,
+  subtitlePath?: string,
+): RenderRequest {
   return {
     videoInput: job.sourcePath,
     output,
@@ -67,6 +78,7 @@ function toRequest(job: RenderJob, template: RenderTemplate, output: string): Re
     crf: template.crf,
     overlay: { title: job.title, subtitle: job.subtitle, watermark: `@${job.account}` },
     template: template.overlay,
+    subtitlePath,
   }
 }
 
@@ -109,17 +121,30 @@ export async function drainQueue(db: Db, overrides: Partial<WorkerDeps> = {}): P
     }, deps.heartbeatMs)
 
     let outcome: JobOutcome
+    let captionsDir: string | null = null
     try {
       // DB-persisted template (edited via the UI) wins; else the built-in catalog; else the fallback.
       const template =
         getDbTemplate(db, job.templateKey) ?? deps.getTemplate(job.templateKey) ?? DEFAULT_RENDER_TEMPLATE
       const output = buildOutputPath(deps.outputRoot, date, job.account, job.category, job.fileName)
-      const result = await deps.renderClip(toRequest(job, template, output))
+      // Phase 3 captions: a job may carry an edited Transcript. Persisted = untrusted, so parse +
+      // Zod-validate it (a malformed row throws here and fails only this job), build the karaoke ASS
+      // sized to the output canvas, and pass its path to the renderer. Null → no subtitlePath → the
+      // filtergraph is byte-identical to the pre-captions render. The temp dir is always cleaned up below.
+      let subtitlePath: string | undefined
+      if (job.captionsTranscript !== null) {
+        const transcript = parseTranscriptJson(job.captionsTranscript)
+        captionsDir = await mkdtemp(join(tmpdir(), 'cc-captions-'))
+        subtitlePath = join(captionsDir, 'captions.ass')
+        await writeFile(subtitlePath, buildAss(transcript, { canvas: template.canvas }))
+      }
+      const result = await deps.renderClip(toRequest(job, template, output, subtitlePath))
       outcome = result.ok ? { ok: true, output } : { ok: false, message: `[${result.stage}] ${result.error}` }
     } catch (err) {
       outcome = { ok: false, message: `[worker] ${err instanceof Error ? err.message : String(err)}` }
     } finally {
       clearInterval(heartbeat)
+      if (captionsDir !== null) rmSync(captionsDir, { recursive: true, force: true })
     }
 
     const elapsedSec = Math.round((deps.now().getTime() - startedMs) / 1000)
