@@ -1,0 +1,383 @@
+/*
+ * Caption Studio — extends the app's industrial-terminal console language into a karaoke editing
+ * workstation. Reuses the global panel/btn/field classes (loaded via the root layout); everything here
+ * is studio-specific: the 9:16 preview stage, the DOM karaoke overlay, the segment timeline, and the
+ * editable word chips. The caption text uses a bold sans (what the burned reel actually shows), while
+ * the chrome stays mono for cohesion with the rest of the app.
+ */
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 380px);
+  gap: 18px;
+  align-items: start;
+}
+@media (max-width: 920px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* keep the preview rail in view while scrolling a long transcript */
+.previewRail {
+  position: sticky;
+  top: 18px;
+}
+
+/* ---- transcript editor ------------------------------------------------ */
+
+.segments {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.segment {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--bg-input);
+  padding: 12px 13px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.segmentLive {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent-soft), 0 0 26px -8px var(--accent);
+}
+
+.segmentHead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 11px;
+  color: var(--ink-faint);
+  letter-spacing: 0.08em;
+}
+.segIndex {
+  color: var(--ink-dim);
+  font-variant-numeric: tabular-nums;
+}
+/* clickable time range — cues the playhead to this segment */
+.cue {
+  appearance: none;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--ink-dim);
+  font: inherit;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  padding: 2px 8px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-variant-numeric: tabular-nums;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+.cue:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.segDur {
+  margin-left: auto;
+  color: var(--ink-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+/* per-segment "sung" progress under the head */
+.segProgress {
+  height: 2px;
+  border-radius: 2px;
+  background: var(--line);
+  overflow: hidden;
+}
+.segProgressFill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--warn));
+  transition: width 0.08s linear;
+}
+
+.words {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 7px;
+  align-items: baseline;
+}
+
+/* a word chip: click to edit. State classes mirror ASS karaoke colour roles. */
+.word {
+  appearance: none;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--ink-dim);
+  font: inherit;
+  font-size: 14px;
+  padding: 3px 7px;
+  border-radius: 7px;
+  cursor: text;
+  transition: color 0.1s ease, background 0.12s ease, border-color 0.12s ease;
+}
+.word:hover {
+  border-color: var(--line);
+  background: rgba(255, 255, 255, 0.03);
+}
+.wordSung {
+  color: var(--ink);
+}
+.wordActive {
+  color: #160a02;
+  background: var(--accent);
+  border-color: var(--accent);
+  box-shadow: 0 0 18px -4px var(--accent);
+}
+.wordUnsung {
+  color: var(--warn);
+}
+
+.wordEditor {
+  width: 9ch;
+  min-width: 6ch;
+  background: var(--bg);
+  border: 1px solid var(--accent);
+  border-radius: 7px;
+  padding: 3px 6px;
+  color: var(--ink);
+  outline: none;
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.segPlain {
+  font-size: 13px;
+  color: var(--ink-dim);
+  font-style: italic;
+}
+
+/* ---- preview stage ---------------------------------------------------- */
+
+.previewStack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.stage {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1080 / 1920;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  overflow: hidden;
+  container-type: inline-size;
+  background:
+    radial-gradient(120% 80% at 50% 0%, #1a1d27 0%, rgba(10, 11, 14, 0) 60%),
+    repeating-conic-gradient(#15171d 0% 25%, #0d0f14 0% 50%) 50% / 22px 22px;
+}
+.stageVideo {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  background: #000;
+}
+/* corner framing marks — the "viewfinder" motif */
+.stage::before,
+.stage::after {
+  content: "";
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  pointer-events: none;
+  z-index: 2;
+}
+.stage::before {
+  top: 10px;
+  left: 10px;
+  border-right: 0;
+  border-bottom: 0;
+}
+.stage::after {
+  bottom: 10px;
+  right: 10px;
+  border-left: 0;
+  border-top: 0;
+}
+
+.safeArea {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 0 8% 12%;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* the burned-caption preview: bold sans, heavy outline for legibility over any frame */
+.caption {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.12em 0.28em;
+  justify-content: center;
+  text-align: center;
+  font-family: "Helvetica Neue", Arial, system-ui, sans-serif;
+  font-weight: 800;
+  font-size: clamp(18px, 5.2cqw, 30px);
+  line-height: 1.12;
+  letter-spacing: -0.01em;
+}
+.capWord {
+  text-shadow:
+    0 0 1px #000,
+    0 2px 6px rgba(0, 0, 0, 0.7),
+    0 0 2px #000;
+  transition: color 0.08s linear, transform 0.08s ease;
+}
+.capUnsung {
+  color: #f4c150;
+}
+.capSung {
+  color: #ffffff;
+}
+.capActive {
+  color: var(--accent);
+  transform: translateY(-1px) scale(1.04);
+  text-shadow:
+    0 0 1px #000,
+    0 2px 6px rgba(0, 0, 0, 0.7),
+    0 0 18px rgba(255, 106, 26, 0.65);
+}
+
+.stageEmpty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 16%;
+  text-align: center;
+  color: var(--ink-faint);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  line-height: 1.6;
+  z-index: 1;
+}
+
+/* ---- transport + timeline -------------------------------------------- */
+
+.transport {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.playBtn {
+  appearance: none;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 auto;
+  border: 1px solid var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-radius: 50%;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  transition: background 0.15s ease, transform 0.12s ease;
+}
+.playBtn:hover {
+  background: var(--accent);
+  color: #160a02;
+}
+.playBtn:active {
+  transform: scale(0.94);
+}
+.clock {
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+  color: var(--ink);
+  letter-spacing: 0.02em;
+}
+.clockDim {
+  color: var(--ink-faint);
+}
+
+.timeline {
+  position: relative;
+  height: 30px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--bg);
+  overflow: hidden;
+  cursor: pointer;
+}
+.segBlock {
+  position: absolute;
+  top: 6px;
+  bottom: 6px;
+  background: var(--line);
+  border-radius: 3px;
+  transition: background 0.15s ease;
+}
+.segBlockLive {
+  background: linear-gradient(180deg, var(--accent), #c4490d);
+}
+.playhead {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--ink);
+  box-shadow: 0 0 8px rgba(233, 235, 241, 0.8);
+  pointer-events: none;
+}
+
+.scrub {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 4px;
+  border-radius: 4px;
+  background: var(--line);
+  outline: none;
+  cursor: pointer;
+}
+.scrub::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid var(--bg);
+  box-shadow: 0 0 10px var(--accent-soft);
+  cursor: grab;
+}
+.scrub::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--bg);
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: grab;
+}
+
+/* ---- ASS output ------------------------------------------------------- */
+
+.assBlock {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg);
+  max-height: 220px;
+  overflow: auto;
+}
+.assPre {
+  margin: 0;
+  padding: 12px;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--ink-dim);
+  white-space: pre;
+  tab-size: 2;
+}
