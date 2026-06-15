@@ -12,7 +12,7 @@
     "test": "bun test",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "worker": "echo \"[worker] not implemented until Phase 6\""
+    "worker": "bun run src/queue/worker.ts"
   },
   "dependencies": {
     "@resvg/resvg-js": "^2.6.2",
