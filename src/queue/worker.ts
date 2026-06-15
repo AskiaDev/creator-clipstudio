@@ -15,6 +15,7 @@ import {
   recordRenderLog,
 } from '../db/jobsRepository'
 import type { RenderJob } from '../db/schema'
+import { getTemplate as getDbTemplate, seedTemplates } from '../db/templatesRepository'
 import { buildOutputPath } from '../output/paths'
 import { type RenderLogEntry, appendRenderLog } from '../output/renderLog'
 import { type RenderRequest, renderClip } from '../render/runRender'
@@ -91,7 +92,9 @@ export async function drainQueue(db: Db, overrides: Partial<WorkerDeps> = {}): P
 
     let outcome: JobOutcome
     try {
-      const template = deps.getTemplate(job.templateKey) ?? DEFAULT_RENDER_TEMPLATE
+      // DB-persisted template (edited via the UI) wins; else the built-in catalog; else the fallback.
+      const template =
+        getDbTemplate(db, job.templateKey) ?? deps.getTemplate(job.templateKey) ?? DEFAULT_RENDER_TEMPLATE
       const output = buildOutputPath(deps.outputRoot, date, job.account, job.category, job.fileName)
       const result = await deps.renderClip(toRequest(job, template, output))
       outcome = result.ok ? { ok: true, output } : { ok: false, message: `[${result.stage}] ${result.error}` }
@@ -121,6 +124,7 @@ if (import.meta.main) {
   const { applyMigrations } = await import('../db/migrate')
   const db = createDb()
   applyMigrations(db)
+  seedTemplates(db)
   const result = await drainQueue(db)
   console.log(`[worker] processed ${result.processed} (${result.succeeded} ok, ${result.failed} failed)`)
 }

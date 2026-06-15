@@ -7,6 +7,7 @@
 
 import { type Db, createDb } from './client'
 import { applyMigrations } from './migrate'
+import { seedTemplates } from './templatesRepository'
 
 let cached: Db | undefined
 
@@ -14,6 +15,7 @@ export function getDb(): Db {
   if (!cached) {
     const db = createDb()
     applyMigrations(db)
+    seedTemplates(db)
     cached = db
   }
   return cached

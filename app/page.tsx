@@ -1,4 +1,5 @@
 import { BatchConsole } from './components/BatchConsole'
+import { StudioPanel } from './components/StudioPanel'
 
 export default function Home() {
   return (
@@ -19,6 +20,7 @@ export default function Home() {
       </section>
 
       <BatchConsole />
+      <StudioPanel />
 
       <footer className="foot">
         <span>Phase 7 — Batch Render UI</span>

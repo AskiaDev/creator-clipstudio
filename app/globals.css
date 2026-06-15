@@ -432,6 +432,22 @@ select {
   text-align: center;
 }
 
+select.input {
+  appearance: none;
+  cursor: pointer;
+}
+.preview-img {
+  width: 100%;
+  max-width: 260px;
+  height: auto;
+  aspect-ratio: 1080 / 1920;
+  object-fit: contain;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background:
+    repeating-conic-gradient(#15171d 0% 25%, #0d0f14 0% 50%) 50% / 18px 18px;
+}
+
 .foot {
   margin-top: auto;
   display: flex;

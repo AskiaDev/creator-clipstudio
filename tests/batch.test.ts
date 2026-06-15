@@ -27,8 +27,8 @@ describe('runPreflight', () => {
   test('partitions valid/invalid using the listed files and known templates', () => {
     const report = runPreflight(
       csv(
-        'a.mp4,T,S,promo,acme,default', // valid
-        'missing.mp4,T,S,promo,acme,default', // file not listed
+        'a.mp4,T,S,promo,acme,plain', // valid
+        'missing.mp4,T,S,promo,acme,plain', // file not listed
         'b.mp4,T,S,promo,acme,nope', // unknown template
       ),
       '/in',
@@ -45,7 +45,7 @@ describe('enqueueBatch', () => {
     const db = freshDb()
     const result = enqueueBatch(
       db,
-      csv('a.mp4,T,S,promo,acme,default', 'missing.mp4,T,S,promo,acme,default'),
+      csv('a.mp4,T,S,promo,acme,plain', 'missing.mp4,T,S,promo,acme,plain'),
       '/in',
       lister,
     )
@@ -58,7 +58,7 @@ describe('enqueueBatch', () => {
 describe('getBatchStatus', () => {
   test('reports counts and recent logs after a done and a failed job', () => {
     const db = freshDb()
-    enqueueBatch(db, csv('a.mp4,T,S,promo,acme,default', 'b.mp4,T,S,promo,acme,default'), '/in', lister)
+    enqueueBatch(db, csv('a.mp4,T,S,promo,acme,plain', 'b.mp4,T,S,promo,acme,plain'), '/in', lister)
 
     const first = claimNextPending(db)
     if (!first) throw new Error('expected a job to claim')
@@ -80,7 +80,7 @@ describe('getBatchStatus', () => {
 describe('safety', () => {
   test('a traversal-unsafe file name cannot produce a valid job even when the file is listed', () => {
     const files = new Map([['../evil.mp4', '/in/../evil.mp4']])
-    const report = runPreflight(csv('../evil.mp4,T,S,promo,acme,default'), '/in', () => files)
+    const report = runPreflight(csv('../evil.mp4,T,S,promo,acme,plain'), '/in', () => files)
     expect(report.valid).toHaveLength(0)
     expect(report.invalid).toHaveLength(1)
   })
