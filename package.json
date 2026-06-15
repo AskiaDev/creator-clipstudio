@@ -12,7 +12,8 @@
     "test": "bun test",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "worker": "bun run src/queue/worker.ts"
+    "worker": "bun run src/queue/worker.ts",
+    "transcribe": "bun run src/transcribe/transcribe.ts"
   },
   "dependencies": {
     "@resvg/resvg-js": "^2.6.2",

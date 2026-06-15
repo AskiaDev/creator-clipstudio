@@ -1,0 +1,14 @@
+{
+  "durationSec": 1.5,
+  "segments": [
+    {
+      "startSec": 0,
+      "endSec": 1.5,
+      "text": "Hello world.",
+      "words": [
+        { "text": "Hello", "startSec": 0, "endSec": 0.6 },
+        { "text": "world.", "startSec": 0.6, "endSec": 1.5 }
+      ]
+    }
+  ]
+}

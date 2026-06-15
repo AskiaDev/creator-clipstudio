@@ -20,6 +20,9 @@ next-env.d.ts
 /output/
 /logs/
 
+# whisper.cpp ggml models (large binaries, downloaded per-machine — never committed)
+/models/
+
 # env
 .env
 .env*.local

@@ -46,7 +46,31 @@ bun run lint            # biome
 bun run build           # next build
 ```
 
+## Transcription (AI pipeline · Phase 1)
+
+The first AI-pipeline phase turns a local video into a typed, timestamped transcript, fully on-device
+via [whisper.cpp](https://github.com/ggerganov/whisper.cpp). One-time setup:
+
+```bash
+brew install whisper-cpp                                   # provides the `whisper-cli` binary
+mkdir -p models                                            # ggml models live here (gitignored)
+curl -L -o models/ggml-base.en.bin \
+  https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.en.bin
+```
+
+Then transcribe a clip:
+
+```bash
+bun run transcribe path/to/video.mp4          # prints segment count + duration
+bun run transcribe path/to/video.mp4 --json   # also prints the full Transcript JSON
+```
+
+Overrides (optional): `WHISPER_BIN` (default `whisper-cli`) and `WHISPER_MODEL`
+(default `models/ggml-base.en.bin`). A source with no audio stream yields an empty transcript with a
+note rather than an error. Audio never leaves your machine.
+
 ## Scope
 
-MVP renderer only. Out of scope: auto-clipping, transcription, AI, auto-posting, cloud rendering,
-desktop packaging.
+Shipped: the **MVP renderer** (batch reel rendering — the export stage). In progress: the **v2 AI
+repurposing pipeline** (ingest → transcribe → auto-clip → captions → reframe → b-roll), built locally
+on whisper.cpp + Ollama. Still out of scope: auto-posting, cloud rendering, desktop packaging.

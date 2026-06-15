@@ -1,0 +1,31 @@
+{
+  "systeminfo": "WHISPER : trimmed fixture captured from whisper-cli 1.8.6 --output-json-full",
+  "model": { "type": "base", "multilingual": false },
+  "params": { "model": "models/ggml-base.en.bin", "language": "en", "translate": false },
+  "result": { "language": "en" },
+  "transcription": [
+    {
+      "timestamps": { "from": "00:00:00,000", "to": "00:00:01,500" },
+      "offsets": { "from": 0, "to": 1500 },
+      "text": " Hello world.",
+      "tokens": [
+        { "text": "[_BEG_]", "offsets": { "from": 0, "to": 0 }, "id": 50363, "p": 0.99 },
+        { "text": " Hello", "offsets": { "from": 100, "to": 600 }, "id": 18435, "p": 0.95 },
+        { "text": " world", "offsets": { "from": 600, "to": 1200 }, "id": 2159, "p": 0.81 },
+        { "text": ".", "offsets": { "from": 1200, "to": 1500 }, "id": 13, "p": 0.74 }
+      ]
+    },
+    {
+      "timestamps": { "from": "00:00:01,500", "to": "00:00:03,200" },
+      "offsets": { "from": 1500, "to": 3200 },
+      "text": " This is a test.",
+      "tokens": [
+        { "text": " This", "offsets": { "from": 1500, "to": 1800 }, "id": 770, "p": 0.96 },
+        { "text": " is", "offsets": { "from": 1800, "to": 2000 }, "id": 318, "p": 0.95 },
+        { "text": " a", "offsets": { "from": 2000, "to": 2100 }, "id": 257, "p": 0.93 },
+        { "text": " test", "offsets": { "from": 2100, "to": 3000 }, "id": 1332, "p": 0.9 },
+        { "text": ".", "offsets": { "from": 3000, "to": 3200 }, "id": 13, "p": 0.7 }
+      ]
+    }
+  ]
+}
