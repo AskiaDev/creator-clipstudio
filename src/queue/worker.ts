@@ -17,9 +17,9 @@ import {
 import type { RenderJob } from '../db/schema'
 import { getTemplate as getDbTemplate, seedTemplates } from '../db/templatesRepository'
 import { buildOutputPath } from '../output/paths'
-import { type RenderLogEntry, appendRenderLog } from '../output/renderLog'
+import { appendRenderLog, type RenderLogEntry } from '../output/renderLog'
 import { type RenderRequest, renderClip } from '../render/runRender'
-import { DEFAULT_RENDER_TEMPLATE, type RenderTemplate, getRenderTemplate } from '../templates/builtins'
+import { DEFAULT_RENDER_TEMPLATE, getRenderTemplate, type RenderTemplate } from '../templates/builtins'
 
 export interface WorkerDeps {
   readonly renderClip: typeof renderClip
@@ -27,6 +27,10 @@ export interface WorkerDeps {
   readonly outputRoot: string
   readonly logsDir: string
   readonly now: () => Date
+  /** Progress sink. Defaults to a no-op so the library stays quiet; the CLI wires it to the console. */
+  readonly log: (message: string) => void
+  /** Cadence for the "still rendering" heartbeat during a long encode. */
+  readonly heartbeatMs: number
 }
 
 export interface DrainResult {
@@ -35,12 +39,17 @@ export interface DrainResult {
   readonly failed: number
 }
 
+/** Heartbeat cadence so a multi-minute (e.g. 4K) encode never looks frozen in the terminal. */
+const HEARTBEAT_MS = 5000
+
 const DEFAULT_DEPS: WorkerDeps = {
   renderClip,
   getTemplate: getRenderTemplate,
   outputRoot: process.env.OUTPUT_ROOT ?? './output',
   logsDir: process.env.LOGS_DIR ?? './logs',
   now: () => new Date(),
+  log: () => {},
+  heartbeatMs: HEARTBEAT_MS,
 }
 
 function dateStamp(date: Date): string {
@@ -89,6 +98,15 @@ export async function drainQueue(db: Db, overrides: Partial<WorkerDeps> = {}): P
     processed++
     const now = deps.now()
     const date = dateStamp(now)
+    const startedMs = now.getTime()
+    const jobId = job.id // captured for the heartbeat closure (the loop var widens back to nullable)
+
+    deps.log(`[worker] job ${jobId}: ${job.fileName} [${job.templateKey}] → rendering…`)
+    // Heartbeat so a long (e.g. 4K) encode never looks frozen; always cleared in the finally below.
+    const heartbeat = setInterval(() => {
+      const elapsed = Math.round((deps.now().getTime() - startedMs) / 1000)
+      deps.log(`[worker] job ${jobId}: …still rendering (${elapsed}s)`)
+    }, deps.heartbeatMs)
 
     let outcome: JobOutcome
     try {
@@ -100,18 +118,23 @@ export async function drainQueue(db: Db, overrides: Partial<WorkerDeps> = {}): P
       outcome = result.ok ? { ok: true, output } : { ok: false, message: `[${result.stage}] ${result.error}` }
     } catch (err) {
       outcome = { ok: false, message: `[worker] ${err instanceof Error ? err.message : String(err)}` }
+    } finally {
+      clearInterval(heartbeat)
     }
 
-    const base = { jobId: job.id, fileName: job.fileName, account: job.account, category: job.category }
+    const elapsedSec = Math.round((deps.now().getTime() - startedMs) / 1000)
+    const base = { jobId, fileName: job.fileName, account: job.account, category: job.category }
     if (outcome.ok) {
       succeeded++
-      markJobDone(db, job.id, outcome.output)
-      recordRenderLog(db, { jobId: job.id, status: 'success', outputPath: outcome.output })
+      deps.log(`[worker] job ${jobId}: ✓ done in ${elapsedSec}s → ${outcome.output}`)
+      markJobDone(db, jobId, outcome.output)
+      recordRenderLog(db, { jobId, status: 'success', outputPath: outcome.output })
       safeAppendLog(deps.logsDir, date, { ...base, status: 'success', outputPath: outcome.output, message: '' }, now.toISOString())
     } else {
       failed++
-      markJobFailed(db, job.id, outcome.message)
-      recordRenderLog(db, { jobId: job.id, status: 'failed', message: outcome.message })
+      deps.log(`[worker] job ${jobId}: ✗ failed in ${elapsedSec}s — ${outcome.message}`)
+      markJobFailed(db, jobId, outcome.message)
+      recordRenderLog(db, { jobId, status: 'failed', message: outcome.message })
       safeAppendLog(deps.logsDir, date, { ...base, status: 'failed', outputPath: '', message: outcome.message }, now.toISOString())
     }
   }
@@ -125,6 +148,7 @@ if (import.meta.main) {
   const db = createDb()
   applyMigrations(db)
   seedTemplates(db)
-  const result = await drainQueue(db)
+  console.log('[worker] draining render queue…')
+  const result = await drainQueue(db, { log: (message) => console.log(message) })
   console.log(`[worker] processed ${result.processed} (${result.succeeded} ok, ${result.failed} failed)`)
 }

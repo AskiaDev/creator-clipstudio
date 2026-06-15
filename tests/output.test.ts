@@ -2,8 +2,8 @@ import { afterAll, describe, expect, test } from 'bun:test'
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { appendRenderLog } from '../src/output/renderLog'
 import { baseName, buildOutputPath } from '../src/output/paths'
+import { appendRenderLog } from '../src/output/renderLog'
 
 const temps: string[] = []
 afterAll(() => {

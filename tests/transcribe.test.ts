@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { transcribePreflight } from '../src/transcribe/preflight'
-import { transcribe, type TranscribeDeps } from '../src/transcribe/transcribe'
+import { type TranscribeDeps, transcribe } from '../src/transcribe/transcribe'
 
 const sampleJson = readFileSync(join(import.meta.dir, 'fixtures', 'whisper-sample.json'), 'utf8')
 

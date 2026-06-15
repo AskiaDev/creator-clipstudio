@@ -2,7 +2,7 @@ import { afterAll, describe, expect, test } from 'bun:test'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { type RenderRequest, probeVideo, renderClip } from '../../src/render/runRender'
+import { probeVideo, type RenderRequest, renderClip } from '../../src/render/runRender'
 
 const FIXTURE = join(import.meta.dir, '..', 'fixtures', 'sample-16x9.mp4')
 const WORK_DIR = mkdtempSync(join(tmpdir(), 'cc-golden-'))

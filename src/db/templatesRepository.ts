@@ -6,7 +6,7 @@
 
 import { eq } from 'drizzle-orm'
 import { BUILTIN_TEMPLATES } from '../templates/builtins'
-import { type RenderTemplate, parseTemplate } from '../templates/schema'
+import { parseTemplate, type RenderTemplate } from '../templates/schema'
 import type { Db } from './client'
 import { templates } from './schema'
 

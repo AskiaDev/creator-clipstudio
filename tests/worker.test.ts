@@ -142,4 +142,21 @@ describe('drainQueue', () => {
     expect(result.succeeded).toBe(1)
     expect(listJobs(db)[0].status).toBe('done')
   })
+
+  test('emits a start and an outcome line per job via the injected log sink', async () => {
+    const db = freshDb()
+    enqueueJobs(db, [row({ fileName: 'a.mp4', sourcePath: '/in/a.mp4' })])
+    const logs: string[] = []
+
+    await drainQueue(db, {
+      renderClip: succeed,
+      outputRoot: tempDir(),
+      logsDir: tempDir(),
+      now: FIXED_NOW,
+      log: (m) => logs.push(m),
+    })
+
+    expect(logs.some((l) => l.includes('rendering…'))).toBe(true)
+    expect(logs.some((l) => l.includes('✓ done'))).toBe(true)
+  })
 })

@@ -2,7 +2,7 @@ import { afterAll, describe, expect, test } from 'bun:test'
 import { openDb } from '../src/db/client'
 import { claimNextPending, markJobDone, markJobFailed, recordRenderLog } from '../src/db/jobsRepository'
 import { applyMigrations } from '../src/db/migrate'
-import { type FileLister, enqueueBatch, getBatchStatus, runPreflight } from '../src/queue/batch'
+import { enqueueBatch, type FileLister, getBatchStatus, runPreflight } from '../src/queue/batch'
 
 const closers: Array<() => void> = []
 afterAll(() => {

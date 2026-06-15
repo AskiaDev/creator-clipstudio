@@ -5,7 +5,7 @@
  * without a manual migrate step. The worker process opens its own connection separately.
  */
 
-import { type Db, createDb } from './client'
+import { createDb, type Db } from './client'
 import { applyMigrations } from './migrate'
 import { seedTemplates } from './templatesRepository'
 

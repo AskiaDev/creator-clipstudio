@@ -10,8 +10,8 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
-import { type FitMode, type Rect, type RenderSpec, type Size, buildFfmpegArgs } from './ffmpegArgs'
-import { type ProbeData, type ProbeResult, buildFfprobeArgs, parseFfprobeJson } from './ffprobe'
+import { buildFfmpegArgs, type FitMode, type Rect, type RenderSpec, type Size } from './ffmpegArgs'
+import { buildFfprobeArgs, type ProbeData, type ProbeResult, parseFfprobeJson } from './ffprobe'
 import { type OverlayContent, type OverlayTemplate, renderOverlayPng } from './overlay'
 import { type BinaryResolver, preflight } from './preflight'
 

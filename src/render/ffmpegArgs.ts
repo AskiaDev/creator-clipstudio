@@ -59,7 +59,10 @@ export function buildFiltergraph(spec: RenderSpec): string {
   return [
     `color=c=${spec.background}:s=${spec.canvas.width}x${spec.canvas.height}[bg]`,
     scale,
-    `[bg][v]${overlay}[base]`,
+    // `shortest=1` ends the composite when the (finite) source video ends. Without it the infinite
+    // `color` background drives an unbounded output for any source whose length isn't otherwise
+    // bounded — notably a clip with no audio stream — and the render runs until the disk fills.
+    `[bg][v]${overlay}:shortest=1[base]`,
     '[base][1:v]overlay=0:0[out]',
   ].join(';')
 }

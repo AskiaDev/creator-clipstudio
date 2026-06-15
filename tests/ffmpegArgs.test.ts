@@ -30,9 +30,17 @@ describe('buildFfmpegArgs', () => {
     expect(graph).toBe(
       'color=c=0x000000:s=1080x1920[bg];' +
         '[0:v]scale=960:1100:force_original_aspect_ratio=increase,crop=960:1100[v];' +
-        '[bg][v]overlay=60:460[base];' +
+        '[bg][v]overlay=60:460:shortest=1[base];' +
         '[base][1:v]overlay=0:0[out]',
     )
+  })
+
+  test('bounds the composite to the source video with shortest=1 (no-audio runaway regression)', () => {
+    // The `color` background is an infinite source; -shortest only bounds output when a finite stream
+    // (normally the audio) is mapped. A clip with no audio would otherwise encode until the disk fills.
+    // shortest=1 on the background↔video overlay ends the composite with the finite source video.
+    expect(filtergraphOf(buildFfmpegArgs(baseSpec))).toContain('[bg][v]overlay=60:460:shortest=1[base]')
+    expect(filtergraphOf(buildFfmpegArgs({ ...baseSpec, fit: 'contain' }))).toContain(':shortest=1[base]')
   })
 
   test('contain scales with decrease and centers the video in the region', () => {

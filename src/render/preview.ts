@@ -12,7 +12,7 @@
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { type RenderSpec, buildFiltergraph } from './ffmpegArgs'
+import { buildFiltergraph, type RenderSpec } from './ffmpegArgs'
 import { type OverlayContent, type OverlayTemplate, renderOverlayPng } from './overlay'
 import { probeVideo } from './runRender'
 
