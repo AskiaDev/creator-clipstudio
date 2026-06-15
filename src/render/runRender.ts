@@ -10,7 +10,7 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
-import { buildFfmpegArgs, type FitMode, type Rect, type RenderSpec, type Size } from './ffmpegArgs'
+import { buildFfmpegArgs, type Cutaway, type FitMode, type Rect, type RenderSpec, type Size } from './ffmpegArgs'
 import { buildFfprobeArgs, type ProbeData, type ProbeResult, parseFfprobeJson } from './ffprobe'
 import { type ExportConfig, describeExportPlan, planExport } from './exportArgs'
 import { type OverlayContent, type OverlayTemplate, renderOverlayPng } from './overlay'
@@ -47,6 +47,11 @@ export interface RenderRequest {
    * + GOP tuning, computed from the output canvas. Absent → CRF encode, byte-identical render.
    */
   readonly export?: ExportConfig
+  /**
+   * Optional Phase-5 b-roll cutaways: timed image overlays composited over the video during each window.
+   * Already resolved (cue → image) by the caller via `resolveCutaways`. Absent → byte-identical render.
+   */
+  readonly cutaways?: readonly Cutaway[]
 }
 
 /** The pipeline stage a failure occurred in. */
@@ -240,6 +245,7 @@ export async function renderClip(
       reframeCrop,
       hwaccel,
       videoEncode,
+      cutaways: request.cutaways,
     }
 
     const { exitCode, stderr } = await d.runFfmpeg(buildFfmpegArgs(spec))

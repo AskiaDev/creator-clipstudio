@@ -140,3 +140,45 @@ describe('buildFfmpegArgs render-opt seam (Phase 6)', () => {
     expect(args[args.indexOf('-g') + 1]).toBe('90')
   })
 })
+
+describe('buildFfmpegArgs b-roll cutaway seam (Phase 5)', () => {
+  const inputsOf = (args: readonly string[]): string[] => args.filter((_a, i) => args[i - 1] === '-i')
+
+  test('no cutaways → only the two base inputs and a byte-identical graph', () => {
+    const args = buildFfmpegArgs(baseSpec)
+    expect(inputsOf(args)).toEqual(['in.mp4', 'overlay.png'])
+    expect(filtergraphOf(args).endsWith('[base][1:v]overlay=0:0[out]')).toBe(true)
+    expect(filtergraphOf(args)).not.toContain('enable=')
+  })
+
+  test('a cutaway adds an input and overlays it full-frame only during its window', () => {
+    const args = buildFfmpegArgs({ ...baseSpec, cutaways: [{ input: '/b/r.png', startSec: 1, endSec: 2 }] })
+    expect(inputsOf(args)).toEqual(['in.mp4', 'overlay.png', '/b/r.png'])
+    const g = filtergraphOf(args)
+    expect(g).toContain('[base][1:v]overlay=0:0[bov]')
+    expect(g).toContain('[2:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,setsar=1[bc0]')
+    expect(g).toContain("[bov][bc0]overlay=0:0:enable='between(t,1,2)'[out]")
+  })
+
+  test('cutaway sits UNDER captions: cutaway → [cap], then ass burns on top → [out]', () => {
+    const g = filtergraphOf(
+      buildFfmpegArgs({ ...baseSpec, subtitlePath: '/c.ass', cutaways: [{ input: '/b/r.png', startSec: 1, endSec: 2 }] }),
+    )
+    expect(g).toContain("[bov][bc0]overlay=0:0:enable='between(t,1,2)'[cap]")
+    expect(g).toContain('[cap]ass=filename=/c.ass[out]')
+  })
+
+  test('multiple cutaways chain in order to [out]', () => {
+    const g = filtergraphOf(
+      buildFfmpegArgs({
+        ...baseSpec,
+        cutaways: [
+          { input: '/b/0.png', startSec: 1, endSec: 2 },
+          { input: '/b/1.png', startSec: 3, endSec: 4 },
+        ],
+      }),
+    )
+    expect(g).toContain("[bov][bc0]overlay=0:0:enable='between(t,1,2)'[cut0]")
+    expect(g).toContain("[cut0][bc1]overlay=0:0:enable='between(t,3,4)'[out]")
+  })
+})

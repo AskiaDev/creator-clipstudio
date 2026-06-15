@@ -189,3 +189,19 @@ describe('renderClip render-opt threading (Phase 6)', () => {
     expect(sink.args).not.toContain('-b:v')
   })
 })
+
+describe('renderClip cutaway threading (Phase 5)', () => {
+  test('threads cutaways → extra input + windowed overlay in the graph', async () => {
+    const sink = { args: [] as readonly string[] }
+    await renderClip({ ...REQUEST, cutaways: [{ input: '/b/r.png', startSec: 0.3, endSec: 0.7 }] }, capturingDeps(sink))
+    expect(sink.args.filter((_a, i) => sink.args[i - 1] === '-i')).toContain('/b/r.png')
+    expect(filtergraphOf(sink.args)).toContain("enable='between(t,0.3,0.7)'")
+  })
+
+  test('no cutaways → no extra input, no enable= (byte-identical)', async () => {
+    const sink = { args: [] as readonly string[] }
+    await renderClip(REQUEST, capturingDeps(sink))
+    expect(filtergraphOf(sink.args)).not.toContain('enable=')
+    expect(filtergraphOf(sink.args)).not.toContain('/b/r.png')
+  })
+})

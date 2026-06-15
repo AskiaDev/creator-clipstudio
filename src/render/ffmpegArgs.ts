@@ -56,6 +56,18 @@ export interface RenderSpec {
     readonly bufsize: number
     readonly keyint: number
   }
+  /** Optional Phase-5 b-roll cutaways: timed full-frame image overlays. Absent → graph unchanged. */
+  readonly cutaways?: readonly Cutaway[]
+}
+
+/**
+ * A Phase-5 b-roll cutaway: an image (local path or URL) overlaid full-frame ONLY during `[startSec, endSec]`
+ * (`enable='between(...)'`) — a brief cutaway over the spoken phrase, not a seamless replacement of the video.
+ */
+export interface Cutaway {
+  readonly input: string
+  readonly startSec: number
+  readonly endSec: number
 }
 
 /**
@@ -86,23 +98,41 @@ function videoChain(spec: RenderSpec): { scale: string; overlay: string } {
   }
 }
 
-/** Build the `-filter_complex` graph: background → video region → overlay PNG → (optional) burned ASS. */
+/** Build the `-filter_complex` graph: background → video region → overlay PNG → b-roll cutaways → (optional) ASS. */
 export function buildFiltergraph(spec: RenderSpec): string {
   const { scale, overlay } = videoChain(spec)
+  const { width, height } = spec.canvas
+  const cutaways = spec.cutaways ?? []
   const lines = [
-    `color=c=${spec.background}:s=${spec.canvas.width}x${spec.canvas.height}[bg]`,
+    `color=c=${spec.background}:s=${width}x${height}[bg]`,
     scale,
     // `shortest=1` ends the composite when the (finite) source video ends. Without it the infinite
     // `color` background drives an unbounded output for any source whose length isn't otherwise
     // bounded — notably a clip with no audio stream — and the render runs until the disk fills.
     `[bg][v]${overlay}:shortest=1[base]`,
   ]
-  // When no subtitle is requested the final label stays `[out]`, so the graph is byte-identical to the
-  // pre-captions renderer (its golden tests stay green). With one, route the composite through `ass`.
+  // The branding overlay PNG. Its output label feeds the next present stage (cutaways → captions → `[out]`);
+  // with neither cutaways nor a subtitle it IS `[out]`, so the graph is byte-identical to the pre-broll /
+  // pre-captions renderer (those golden tests stay green).
+  const afterBrand = cutaways.length > 0 ? 'bov' : spec.subtitlePath ? 'cap' : 'out'
+  lines.push(`[base][1:v]overlay=0:0[${afterBrand}]`)
+
+  // Phase 5 b-roll cutaways: each image is scaled to cover the canvas and overlaid ONLY during its window
+  // (`enable='between(...)'`) — a brief cutaway over the phrase, not a seamless replace. They sit UNDER
+  // captions so burned-in text stays legible even during a cutaway.
+  let label = afterBrand
+  cutaways.forEach((cut, i) => {
+    const isLast = i === cutaways.length - 1
+    const next = isLast ? (spec.subtitlePath ? 'cap' : 'out') : `cut${i}`
+    lines.push(
+      `[${2 + i}:v]scale=${width}:${height}:force_original_aspect_ratio=increase,crop=${width}:${height},setsar=1[bc${i}]`,
+    )
+    lines.push(`[${label}][bc${i}]overlay=0:0:enable='between(t,${cut.startSec},${cut.endSec})'[${next}]`)
+    label = next
+  })
+
   if (spec.subtitlePath) {
-    lines.push('[base][1:v]overlay=0:0[cap]', `[cap]ass=filename=${escapeAssPath(spec.subtitlePath)}[out]`)
-  } else {
-    lines.push('[base][1:v]overlay=0:0[out]')
+    lines.push(`[cap]ass=filename=${escapeAssPath(spec.subtitlePath)}[out]`)
   }
   return lines.join(';')
 }
@@ -121,12 +151,16 @@ export function buildFfmpegArgs(spec: RenderSpec): string[] {
   // `-hwaccel videotoolbox` (Phase 6) is a per-input DECODE option placed before the video `-i`; absent
   // → software decode (byte-identical). The encoder (videoEncodeArgs) is unchanged either way.
   const decodeArgs = spec.hwaccel ? ['-hwaccel', spec.hwaccel] : []
+  // Each b-roll cutaway is an extra `-i` after the overlay PNG, so its input index is `2 + i` (the
+  // filtergraph references `[2:v]`, `[3:v]`, …). Absent → no extra inputs (byte-identical).
+  const cutawayInputs = (spec.cutaways ?? []).flatMap((cut) => ['-i', cut.input])
   return [
     ...decodeArgs,
     '-i',
     spec.videoInput,
     '-i',
     spec.overlayInput,
+    ...cutawayInputs,
     '-filter_complex',
     buildFiltergraph(spec),
     '-map',
