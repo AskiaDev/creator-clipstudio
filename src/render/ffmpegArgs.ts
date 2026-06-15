@@ -38,6 +38,12 @@ export interface RenderSpec {
   readonly crf: number
   /** Optional ASS subtitle file to burn in (Phase 3 captions). Absent → graph is unchanged. */
   readonly subtitlePath?: string
+  /**
+   * Optional reframe `crop=` filter (Phase 4) prepended to the source `[0:v]` chain before the region
+   * scale — reframes e.g. a 16:9 source into a 9:16 window. Absent → the `[0:v]` chain is byte-identical.
+   * `runRender` builds this from the probed source size via `reframeCropExpr` (src/render/reframe.ts).
+   */
+  readonly reframeCrop?: string
 }
 
 /**
@@ -52,15 +58,18 @@ function escapeAssPath(path: string): string {
 
 function videoChain(spec: RenderSpec): { scale: string; overlay: string } {
   const { region, fit } = spec
+  // Phase 4 reframe: an optional `crop=` is prepended to the source so the region scale operates on the
+  // reframed (e.g. 9:16) window. Absent → `[0:v]` is untouched, so the graph stays byte-identical.
+  const src = spec.reframeCrop ? `[0:v]${spec.reframeCrop},` : '[0:v]'
   if (fit === 'cover') {
     return {
-      scale: `[0:v]scale=${region.width}:${region.height}:force_original_aspect_ratio=increase,crop=${region.width}:${region.height}[v]`,
+      scale: `${src}scale=${region.width}:${region.height}:force_original_aspect_ratio=increase,crop=${region.width}:${region.height}[v]`,
       overlay: `overlay=${region.x}:${region.y}`,
     }
   }
   // contain: fit inside the region, then center it so the background shows in the gaps.
   return {
-    scale: `[0:v]scale=${region.width}:${region.height}:force_original_aspect_ratio=decrease[v]`,
+    scale: `${src}scale=${region.width}:${region.height}:force_original_aspect_ratio=decrease[v]`,
     overlay: `overlay=x=${region.x}+(${region.width}-overlay_w)/2:y=${region.y}+(${region.height}-overlay_h)/2`,
   }
 }

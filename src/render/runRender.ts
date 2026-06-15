@@ -14,6 +14,7 @@ import { buildFfmpegArgs, type FitMode, type Rect, type RenderSpec, type Size } 
 import { buildFfprobeArgs, type ProbeData, type ProbeResult, parseFfprobeJson } from './ffprobe'
 import { type OverlayContent, type OverlayTemplate, renderOverlayPng } from './overlay'
 import { type BinaryResolver, preflight } from './preflight'
+import { type ReframeRequest, reframeCropExpr } from './reframe'
 
 export interface RenderRequest {
   readonly videoInput: string
@@ -34,10 +35,16 @@ export interface RenderRequest {
    * pre-captions renderer (the `ass` filter is only added when this is set — see `buildFiltergraph`).
    */
   readonly subtitlePath?: string
+  /**
+   * Optional auto-reframe (Phase 4): reframe e.g. a 16:9 source into a 9:16 window via a `crop` filter,
+   * by a static focus or focus keyframes. The crop is computed from the probed source size. Absent →
+   * the render path is byte-identical to the un-reframed renderer.
+   */
+  readonly reframe?: ReframeRequest
 }
 
 /** The pipeline stage a failure occurred in. */
-export type RenderStage = 'preflight' | 'probe' | 'overlay' | 'ffmpeg'
+export type RenderStage = 'preflight' | 'probe' | 'reframe' | 'overlay' | 'ffmpeg'
 
 export type RenderResult =
   | { readonly ok: true; readonly output: string; readonly probe: ProbeData }
@@ -122,6 +129,18 @@ export async function renderClip(
     return { ok: false, stage: 'probe', error: probe.error }
   }
 
+  // Phase 4 reframe: build the crop from the REAL probed source size (focus is normalized). A malformed
+  // request throws here (bad focus/zoom/aspect) and is surfaced as a typed `reframe` failure, never a
+  // broken filtergraph. Absent → undefined → byte-identical render.
+  let reframeCrop: string | undefined
+  if (request.reframe) {
+    try {
+      reframeCrop = reframeCropExpr(request.reframe, { width: probe.data.width, height: probe.data.height })
+    } catch (err) {
+      return { ok: false, stage: 'reframe', error: errorMessage(err) }
+    }
+  }
+
   let overlayPng: Uint8Array
   try {
     overlayPng = await d.makeOverlayPng(request.overlay, request.template)
@@ -156,6 +175,7 @@ export async function renderClip(
       background: request.background,
       crf: request.crf,
       subtitlePath: request.subtitlePath,
+      reframeCrop,
     }
 
     const { exitCode, stderr } = await d.runFfmpeg(buildFfmpegArgs(spec))

@@ -29,6 +29,20 @@ function okDeps(over: Partial<RenderDeps> = {}): Partial<RenderDeps> {
   }
 }
 
+/** Extract the filtergraph string that follows `-filter_complex` in a captured argv. */
+function filtergraphOf(args: readonly string[]): string {
+  return args[args.indexOf('-filter_complex') + 1] ?? ''
+}
+/** ok deps that record the ffmpeg argv the renderer would spawn, into `sink.args`. */
+function capturingDeps(sink: { args: readonly string[] }): Partial<RenderDeps> {
+  return okDeps({
+    runFfmpeg: async (args) => {
+      sink.args = args
+      return { exitCode: 0, stderr: '' }
+    },
+  })
+}
+
 describe('renderClip orchestration', () => {
   test('fails at the preflight stage when a required binary is missing', async () => {
     const result = await renderClip(REQUEST, okDeps({ resolveBinary: (b) => (b === 'ffmpeg' ? null : `/usr/bin/${b}`) }))
@@ -87,19 +101,6 @@ describe('renderClip orchestration', () => {
 })
 
 describe('renderClip subtitle threading (Phase 3 captions)', () => {
-  function filtergraphOf(args: readonly string[]): string {
-    return args[args.indexOf('-filter_complex') + 1] ?? ''
-  }
-  /** ok deps that record the ffmpeg argv the renderer would spawn, into `sink.args`. */
-  function capturingDeps(sink: { args: readonly string[] }): Partial<RenderDeps> {
-    return okDeps({
-      runFfmpeg: async (args) => {
-        sink.args = args
-        return { exitCode: 0, stderr: '' }
-      },
-    })
-  }
-
   test('threads request.subtitlePath into the filtergraph as a burned-in ass filter', async () => {
     const sink = { args: [] as readonly string[] }
     const result = await renderClip({ ...REQUEST, subtitlePath: '/tmp/caps/cap.ass' }, capturingDeps(sink))
@@ -113,5 +114,32 @@ describe('renderClip subtitle threading (Phase 3 captions)', () => {
     const graph = filtergraphOf(sink.args)
     expect(graph).not.toContain('ass=')
     expect(graph.endsWith('[out]')).toBe(true)
+  })
+})
+
+describe('renderClip reframe threading (Phase 4)', () => {
+  test('computes the reframe crop from the probed source dims and prepends it to [0:v]', async () => {
+    const sink = { args: [] as readonly string[] }
+    // okDeps probes 640x360 → center focus → crop=203:360:219:0
+    const result = await renderClip({ ...REQUEST, reframe: { focus: { x: 0.5, y: 0.5 } } }, capturingDeps(sink))
+    if (!result.ok) throw new Error(`expected success, got ${result.stage}: ${result.error}`)
+    expect(filtergraphOf(sink.args)).toContain('[0:v]crop=203:360:219:0,scale=')
+  })
+
+  test('no reframe → no crop prepended (byte-identical [0:v] chain)', async () => {
+    const sink = { args: [] as readonly string[] }
+    await renderClip(REQUEST, capturingDeps(sink))
+    const graph = filtergraphOf(sink.args)
+    expect(graph).toContain('[0:v]scale=')
+    expect(graph).not.toContain('crop=203:360:219:0')
+  })
+
+  test('fails at the reframe stage when the focus geometry is invalid', async () => {
+    const result = await renderClip(
+      { ...REQUEST, reframe: { focus: { x: Number.NaN, y: 0.5 } } },
+      capturingDeps({ args: [] as readonly string[] }),
+    )
+    if (result.ok) throw new Error('expected a reframe failure')
+    expect(result.stage).toBe('reframe')
   })
 })

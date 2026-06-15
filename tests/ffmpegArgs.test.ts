@@ -95,3 +95,21 @@ describe('buildFiltergraph subtitle burn-in seam', () => {
     expect(graph).toContain('ass=filename=/tmp/a\\:b/cap.ass[out]')
   })
 })
+
+describe('buildFiltergraph reframe crop seam', () => {
+  test('no reframeCrop → [0:v] chain is byte-identical (scale begins straight from [0:v])', () => {
+    expect(filtergraphOf(buildFfmpegArgs(baseSpec))).toContain(
+      '[0:v]scale=960:1100:force_original_aspect_ratio=increase',
+    )
+  })
+
+  test('with reframeCrop → the crop is prepended to the [0:v] chain before the scale', () => {
+    const graph = filtergraphOf(buildFfmpegArgs({ ...baseSpec, reframeCrop: 'crop=203:360:219:0' }))
+    expect(graph).toContain('[0:v]crop=203:360:219:0,scale=960:1100:force_original_aspect_ratio=increase')
+  })
+
+  test('reframeCrop also applies in contain mode', () => {
+    const graph = filtergraphOf(buildFfmpegArgs({ ...baseSpec, fit: 'contain', reframeCrop: 'crop=203:360:219:0' }))
+    expect(graph).toContain('[0:v]crop=203:360:219:0,scale=960:1100:force_original_aspect_ratio=decrease')
+  })
+})
