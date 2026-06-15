@@ -1,0 +1,14 @@
+{
+  "source": { "width": 1920, "height": 1080 },
+  "targetAspect": 0.5625,
+  "fps": 1,
+  "keyframes": [
+    { "tSec": 0, "focus": { "x": 0.25, "y": 0.5 } },
+    { "tSec": 2, "focus": { "x": 0.75, "y": 0.5 } }
+  ],
+  "expected": [
+    { "tSec": 0, "rect": { "x": 176.25, "y": 0, "width": 607.5, "height": 1080 } },
+    { "tSec": 1, "rect": { "x": 656.25, "y": 0, "width": 607.5, "height": 1080 } },
+    { "tSec": 2, "rect": { "x": 1136.25, "y": 0, "width": 607.5, "height": 1080 } }
+  ]
+}
