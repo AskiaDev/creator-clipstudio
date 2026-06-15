@@ -1,0 +1,40 @@
+{
+  "durationSec": 12,
+  "segments": [
+    {
+      "startSec": 0,
+      "endSec": 2.4,
+      "text": "Stop scrolling right now.",
+      "words": [
+        { "text": "Stop", "startSec": 0, "endSec": 0.5 },
+        { "text": "scrolling", "startSec": 0.5, "endSec": 1.2 },
+        { "text": "right", "startSec": 1.2, "endSec": 1.7 },
+        { "text": "now.", "startSec": 1.7, "endSec": 2.4 }
+      ]
+    },
+    {
+      "startSec": 2.6,
+      "endSec": 5.8,
+      "text": "This is the one trick.",
+      "words": [
+        { "text": "This", "startSec": 2.6, "endSec": 3.0 },
+        { "text": "is", "startSec": 3.0, "endSec": 3.2 },
+        { "text": "the", "startSec": 3.2, "endSec": 3.5 },
+        { "text": "one", "startSec": 3.5, "endSec": 4.2 },
+        { "text": "trick.", "startSec": 4.2, "endSec": 5.8 }
+      ]
+    },
+    {
+      "startSec": 6.0,
+      "endSec": 9.2,
+      "text": "Creators use to blow up.",
+      "words": [
+        { "text": "Creators", "startSec": 6.0, "endSec": 6.7 },
+        { "text": "use", "startSec": 6.7, "endSec": 7.0 },
+        { "text": "to", "startSec": 7.0, "endSec": 7.3 },
+        { "text": "blow", "startSec": 7.3, "endSec": 8.0 },
+        { "text": "up.", "startSec": 8.0, "endSec": 9.2 }
+      ]
+    }
+  ]
+}
