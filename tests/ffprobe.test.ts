@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test'
+import { buildFfprobeArgs, parseFfprobeJson } from '../src/render/ffprobe'
 import landscapeAudio from './fixtures/probe-landscape-audio.json'
 import portraitNoAudio from './fixtures/probe-portrait-noaudio.json'
-import { buildFfprobeArgs, parseFfprobeJson } from '../src/render/ffprobe'
 
 describe('buildFfprobeArgs', () => {
   test('requests JSON with streams and format for the given path', () => {

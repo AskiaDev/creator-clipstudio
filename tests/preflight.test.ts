@@ -1,8 +1,8 @@
 import { describe, expect, test } from 'bun:test'
 import {
+  type BinaryResolver,
   preflight,
   REQUIRED_BINARIES,
-  type BinaryResolver,
 } from '../src/render/preflight'
 
 /** Resolver where every binary is present. */
