@@ -1,0 +1,46 @@
+{
+  "durationSec": 20,
+  "segments": [
+    {
+      "startSec": 0,
+      "endSec": 6,
+      "text": "Electric cars are changing the world.",
+      "words": [
+        { "text": "Electric", "startSec": 0.0, "endSec": 0.6 },
+        { "text": "cars", "startSec": 0.6, "endSec": 1.0 },
+        { "text": "are", "startSec": 1.0, "endSec": 1.2 },
+        { "text": "changing", "startSec": 1.2, "endSec": 1.8 },
+        { "text": "the", "startSec": 1.8, "endSec": 1.9 },
+        { "text": "world.", "startSec": 1.9, "endSec": 2.4 }
+      ]
+    },
+    {
+      "startSec": 6,
+      "endSec": 13,
+      "text": "Solar panels power many electric cars today.",
+      "words": [
+        { "text": "Solar", "startSec": 6.0, "endSec": 6.5 },
+        { "text": "panels", "startSec": 6.5, "endSec": 7.0 },
+        { "text": "power", "startSec": 7.0, "endSec": 7.4 },
+        { "text": "many", "startSec": 7.4, "endSec": 7.7 },
+        { "text": "electric", "startSec": 7.7, "endSec": 8.2 },
+        { "text": "cars", "startSec": 8.2, "endSec": 8.6 },
+        { "text": "today.", "startSec": 8.6, "endSec": 9.0 }
+      ]
+    },
+    {
+      "startSec": 13,
+      "endSec": 20,
+      "text": "The battery technology keeps improving every year.",
+      "words": [
+        { "text": "The", "startSec": 13.0, "endSec": 13.1 },
+        { "text": "battery", "startSec": 13.1, "endSec": 13.6 },
+        { "text": "technology", "startSec": 13.6, "endSec": 14.3 },
+        { "text": "keeps", "startSec": 14.3, "endSec": 14.7 },
+        { "text": "improving", "startSec": 14.7, "endSec": 15.3 },
+        { "text": "every", "startSec": 15.3, "endSec": 15.6 },
+        { "text": "year.", "startSec": 15.6, "endSec": 16.0 }
+      ]
+    }
+  ]
+}
